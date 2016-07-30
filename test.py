@@ -36,16 +36,15 @@ def boost_tweets(api):
             pickle.dump(targets, open(targetfile, 'wb'))
             return
 
-        if len(tweets)==0:
-            print 'No new tweets for ' + target
-        else:
-            new_since_id = tweets[0].AsDict()['id']
-            try:
-                api.PostRetweet(status_id=new_since_id)
-            except:
-                print 'Already retweeted {0}'.format(new_since_id)
-            since_ids[target] = new_since_id
-
+    if len(tweets)==0:
+        print 'No new tweets'
+    else:
+        new_since_id = tweets[0].AsDict()['id']
+        try:
+            api.PostRetweet(status_id=new_since_id)
+        except:
+            print 'Already retweeted {0}'.format(new_since_id)
+        since_ids[target] = new_since_id
     pickle.dump(since_ids, open(sincefile, 'wb'))
 
 
