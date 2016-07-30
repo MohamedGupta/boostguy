@@ -1,24 +1,38 @@
 #!/usr/bin/env python
-import twitter, twitter_config
+import twitter, twitter_config, slack_config
 import requests, json
 from os import path
+from slacker import Slacker
+
+targetfile = '/home/pi/git/boostguy/target.txt'
+sincefile = '/home/pi/git/boostguy/since_id.txt'
 
 cred = next(acct for acct in twitter_config.accounts if acct['username'] == 'BoostedThat4ya')
-target = open('target', 'r').read()
-
+target = open(targetfile, 'r').read()
+slack = Slacker(slack_config.key)
 
 def boost_tweets(api):
-    if path.isfile('since_id'):
-        since_id = open('since_id', 'r').read()
+    if not target:
+        print 'No target'
+        return
+    if path.isfile(sincefile):
+        since_id = open(sincefile, 'r').read()
     else:
         since_id = 0
-    tweets = api.GetUserTimeline(screen_name=target, since_id=since_id, include_rts=False)
+    try:
+        tweets = api.GetUserTimeline(screen_name=target, since_id=since_id, include_rts=False)
+    except twitter.error.TwitterError:
+        slack.chat.post_message('#signalboost', 'Signal boost guy has been blocked by ' + target)
+        with open(targetfile, 'w') as file:
+            file.write('')        
+        return
+
     if len(tweets)==0:
         print 'No new tweets'
     else:
         new_since_id = tweets[0].AsDict()['id']
         api.PostRetweet(status_id=new_since_id)
-        with open('since_id', 'w') as file:
+        with open(sincefile, 'w') as file:
             file.write(str(new_since_id))
 
 
