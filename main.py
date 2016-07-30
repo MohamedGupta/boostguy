@@ -1,28 +1,27 @@
 #!/usr/bin/env python
-import twitter, twitter_config, settings
+import twitter, twitter_config
 import requests, json
-cred = next(acct for acct in twitter_config.accounts if acct['username'] == 'FYADFlags')
+from os import path
 
-def tweet_flag(api):
-    
-    user_blacklist = True
-    while user_blacklist == True:
-        req = requests.get('http://forums.somethingawful.com/flag.php?forumid=26')
-        flag = json.loads(req.content)
-        user_blacklist = flag['username'] in settings.blacklist
+cred = next(acct for acct in twitter_config.accounts if acct['username'] == 'BoostedThat4ya')
+target = open('target', 'r').read()
 
-    flagpath = "http://fi.somethingawful.com/flags" + flag['path']
-    tweet = "#FYADflag " + flagpath + " by " + flag['username'] + " " + flag['created']
-    mediatweet = "#FYADflag by " + flag['username'] + " " + flag['created'] + " " + flagpath
-    
-    if flag['path'] != 'error.png':
-        try:
-            r = api.PostUpdate(mediatweet, media=flagpath)
-            print 'Posted flag ' + flagpath
-        except:
-            print 'Flag post failed ' + flagpath
+
+def boost_tweets(api):
+    if path.isfile('since_id'):
+        since_id = open('since_id', 'r').read()
     else:
-        print 'SA PHP error {0}'.format(flag)
+        since_id = 0
+    tweets = api.GetUserTimeline(screen_name=target, since_id=since_id, include_rts=False)
+    if len(tweets)==0:
+        print 'No new tweets'
+    else:
+        new_since_id = tweets[0].AsDict()['id']
+        api.PostRetweet(status_id=new_since_id)
+        with open('since_id', 'w') as file:
+            file.write(str(new_since_id))
+
+
 if __name__ == '__main__':
     try:
         api = twitter.Api(consumer_key=cred['consumer_key'], consumer_secret=cred['consumer_secret'],
@@ -31,5 +30,5 @@ if __name__ == '__main__':
         print 'Failed to authenticate.'
         exit()
 
-    tweet_flag(api)
+    boost_tweets(api)
 
