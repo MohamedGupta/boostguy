@@ -3,37 +3,49 @@ import twitter, twitter_config, slack_config
 import requests, json
 from os import path
 from slacker import Slacker
+import pickle
 
-targetfile = '/home/pi/git/boostguy/target.txt'
-sincefile = '/home/pi/git/boostguy/since_id.txt'
+targetfile = '/home/pi/git/boostguy/targets.p'
+sincefile = '/home/pi/git/boostguy/since_ids.p'
 
 cred = next(acct for acct in twitter_config.accounts if acct['username'] == 'BoostedThat4ya')
-target = open(targetfile, 'r').read()
+if path.isfile(targetfile):
+    targets = pickle.load(open(targetfile, 'r'))
+if path.isfile(sincefile):
+    since_ids = pickle.load(open(sincefile, 'r'))
+else:
+    since_ids = dict()
 slack = Slacker(slack_config.key)
 
 def boost_tweets(api):
-    if not target:
-        print 'No target'
+    if not targets:
+        print 'No targets'
         return
-    if path.isfile(sincefile):
-        since_id = open(sincefile, 'r').read()
-    else:
-        since_id = 0
-    try:
-        tweets = api.GetUserTimeline(screen_name=target, since_id=since_id, include_rts=False)
-    except twitter.error.TwitterError:
-        slack.chat.post_message('#signalboost', 'Signal boost guy has been blocked by ' + target)
-        with open(targetfile, 'w') as file:
-            file.write('')        
-        return
+    
+    for target in targets:
+        if target in since_ids:
+            since_id = since_ids[target]
+        else:
+            since_id = 0
+        try:
+            tweets = api.GetUserTimeline(screen_name=target, since_id=since_id, include_rts=False)
+        except twitter.error.TwitterError:
+            slack.chat.post_message('#signalboost', 'Signal boost guy has been blocked by ' + target)
+            targets.remove(target)
+            print 'Remaining targets: {0}'.format(', '.join(targets))
+            pickle.dump(targets, open(targetfile, 'wb'))
+            return
 
     if len(tweets)==0:
         print 'No new tweets'
     else:
         new_since_id = tweets[0].AsDict()['id']
-        api.PostRetweet(status_id=new_since_id)
-        with open(sincefile, 'w') as file:
-            file.write(str(new_since_id))
+        try:
+            api.PostRetweet(status_id=new_since_id)
+        except:
+            print 'Already retweeted {0}'.format(new_since_id)
+        since_ids[target] = new_since_id
+    pickle.dump(since_ids, open(sincefile, 'wb'))
 
 
 if __name__ == '__main__':
