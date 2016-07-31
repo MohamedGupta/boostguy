@@ -32,18 +32,20 @@ def boost_tweets(api):
         try:
             api.CreateFriendship(screen_name=target)
         except twitter.error.TwitterError, e:
-            print e
             if e[0][0]['code'] == 162:
                 blocks.append(target)
                 slack.chat.post_message('#signalboost', 'Signal boost guy has been blocked by ' + target)
                 slack.chat.post_message('#signalboost', 'Cowards: ' + ':troll: '.join(blocks) + ' :troll:')
                 targets.remove(target)
+            if e[0][0]['code'] == 88:
+                print 'Rate limited!'
         
         if target not in blocks:
             if target in since_ids:
                 since_id = since_ids[target]
             else:
                 since_id = 0
+
             try:
                 tweets = api.GetUserTimeline(screen_name=target, since_id=since_id, include_rts=False)
                 if len(tweets) == 0:
@@ -53,19 +55,27 @@ def boost_tweets(api):
                     for tweet in tweets:
                         try:
                             api.PostRetweet(status_id=tweet.AsDict()['id'])
+                            since_ids[target] = new_since_id
                         except twitter.error.TwitterError, e:
-                            print 'Already retweeted {0}'.format(new_since_id)
-                            print e[0][0]
-
-                    since_ids[target] = new_since_id
-
+                            if e[0][0]['code'] == 162:
+                                blocks.append(target)
+                                slack.chat.post_message('#signalboost', 'Signal boost guy has been blocked by ' + target)
+                                slack.chat.post_message('#signalboost', 'Cowards: ' + ':troll: '.join(blocks) + ' :troll:')
+                                targets.remove(target)
+                            if e[0][0]['code'] == 88:
+                                print 'Rate limited!
 
             except twitter.error.TwitterError, e:
+                print e[0][0]
                 if e[0][0]['code'] == 162:
                     blocks.append(target)
                     slack.chat.post_message('#signalboost', 'Signal boost guy has been blocked by ' + target)
                     slack.chat.post_message('#signalboost', 'Cowards: ' + ':troll: '.join(blocks) + ' :troll:')
                     targets.remove(target)
+        else:
+            print 'Checking {0} for some reason...'.format(target)
+            slack.chat.post_message('#signalboost', 'Signal boost guy has been blocked by ' + target)
+            slack.chat.post_message('#signalboost', 'Cowards: ' + ':troll: '.join(blocks) + ' :troll:')
 
     targets = [t for t in set(targets)]
     pickle.dump(targets, open(targetfile, 'wb'))
