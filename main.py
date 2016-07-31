@@ -66,6 +66,7 @@ def boost_tweets(tw, slack):
 
         if since_id == 0:
             tweets = [tweets[0]]
+            since_ids[target] = tweets[0].AsDict()['id']
 
         for tweet in reversed(tweets):
             try:
@@ -79,6 +80,8 @@ def boost_tweets(tw, slack):
                     blocks.append(target)
                     targets.remove(target)
                     slack.chat.post_message('#testbed', 'Blocked on RT by ' + target + '\n' + e)
+                elif e[0][0]['code'] in (327):
+                    since_ids[target] = tweet.AsDict()['id']
                 else:
                     slack.chat.post_message('#testbed', e)
 
