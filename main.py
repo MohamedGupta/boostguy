@@ -63,7 +63,7 @@ def boost_tweets(api):
                                 slack.chat.post_message('#signalboost', 'Cowards: ' + ':troll: '.join(blocks) + ' :troll:')
                                 targets.remove(target)
                             if e[0][0]['code'] == 88:
-                                print 'Rate limited!
+                                print 'Rate limited!'
 
             except twitter.error.TwitterError, e:
                 print e[0][0]
