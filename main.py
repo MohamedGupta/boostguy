@@ -23,9 +23,9 @@ def boost_tweets(tw, slack):
     else:
         blocks = []
     if path.isfile(retweetfile):
-        retweets = pickle.load(open(targetfile, 'r'))
+        retweets = pickle.load(open(retweetfile, 'r'))
     else:
-        retweets = {}
+        retweets = dict()
 
     if not targets:
         print 'No targets'
@@ -43,10 +43,11 @@ def boost_tweets(tw, slack):
                 return
             elif e[0][0]['code'] in (136, 162):
                 blocks.append(target)
+                retweets[target] = []
+                since_ids[target] = 0
                 slack.chat.post_message('#signalboost', 'Signal boost guy has been blocked by ' + target)
                 slack.chat.post_message('#signalboost', 'Cowards: ' + ':troll: '.join(blocks) + ' :troll:')
                 targets.remove(target)
-                targets.next()
                 continue
 
         if target in since_ids:
@@ -59,9 +60,15 @@ def boost_tweets(tw, slack):
         except twitter.error.TwitterError, e:
             if e[0][0]['code'] == 88:
                 slack.chat.post_message('#testbed', 'Rate limited')
+                pickle.dump(retweets, open(retweetfile, 'wb'))
+                pickle.dump([t for t in set(targets)], open(targetfile, 'wb'))
+                pickle.dump(since_ids, open(sincefile, 'wb'))
+                pickle.dump([b for b in set(blocks)], open(blockfile, 'wb'))
                 return
             elif e[0][0]['code'] in (136, 162):
                 blocks.append(target)
+                retweets[target] = []
+                since_ids[target] = 0
                 slack.chat.post_message('#signalboost', 'Signal boost guy has been blocked by ' + target)
                 slack.chat.post_message('#signalboost', 'Cowards: ' + ':troll: '.join(blocks) + ' :troll:')
                 targets.remove(target)
@@ -78,28 +85,34 @@ def boost_tweets(tw, slack):
         else:
             retweets[target].append(list(t.AsDict()['id'] for t in tweets))
 
-        for tweet_id in retweets[target]:
+        for tweet_id in reversed(retweets[target]):
             try:
                 tw.PostRetweet(status_id=tweet_id)
                 since_ids[target] = tweet_id
                 retweets[target].remove(tweet_id)
-                slack.chat.post_message('#testbed', 'Retweeted {0} {1}'.format(target, tweet_id))
+                slack.chat.post_message('#testbed', '```Retweeted {0} {1}```'.format(target, tweet_id))
             except twitter.error.TwitterError, e:
                 if e[0][0]['code'] == 88:
+                    # Rate Limited
                     slack.chat.post_message('#testbed', 'Rate limited')
+                    pickle.dump(retweets, open(retweetfile, 'wb'))
+                    pickle.dump([t for t in set(targets)], open(targetfile, 'wb'))
+                    pickle.dump(since_ids, open(sincefile, 'wb'))
+                    pickle.dump([b for b in set(blocks)], open(blockfile, 'wb'))
                     return
                 elif e[0][0]['code'] in (136, 162):
+                    # Blocked
                     blocks.append(target)
                     targets.remove(target)
                     slack.chat.post_message('#testbed', 'Blocked on RT by ' + target + '\n' + e)
                 elif e[0][0]['code'] == 327:
+                    #Already Retweeted
                     since_ids[target] = tweet_id
                 else:
                     slack.chat.post_message('#testbed', e)
 
-    targets = [t for t in set(targets)]
     pickle.dump(retweets, open(retweetfile, 'wb'))
-    pickle.dump(targets, open(targetfile, 'wb'))
+    pickle.dump([t for t in set(targets)], open(targetfile, 'wb'))
     pickle.dump(since_ids, open(sincefile, 'wb'))
     pickle.dump([b for b in set(blocks)], open(blockfile, 'wb'))
 
