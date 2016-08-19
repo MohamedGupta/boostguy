@@ -117,7 +117,7 @@ def boost_tweets(tw, slack):
     pickle.dump([b for b in set(blocks)], open(blockfile, 'wb'))
 
 if __name__ == '__main__':
-    cred = next(acct for acct in twitter_config.accounts if acct['username'] == 'BoostedThat4ya')
+    cred = twitter_config.accounts['BoostedThat4ya']
     try:
         tw = twitter.Api(consumer_key=cred['consumer_key'], consumer_secret=cred['consumer_secret'],
                           access_token_key=cred['access_token_key'], access_token_secret=cred['access_token_secret'])
